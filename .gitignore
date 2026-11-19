@@ -9,6 +9,7 @@ bin/
 obj/
 .vs/
 backend/TrakyaNet.API/wwwroot/uploads/**
+!backend/TrakyaNet.API/wwwroot/uploads/assignments/
 !backend/TrakyaNet.API/wwwroot/uploads/assignments/.gitkeep
 *.jks
 *.p8
