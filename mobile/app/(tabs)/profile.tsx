@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { Camera, Image as GalleryIcon, LogOut, Trash2, X } from 'lucide-react-native';
+import { Camera, ChevronDown, Image as GalleryIcon, LogOut, Trash2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CircularCropper } from '@/components/CircularCropper';
@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { TOKEN_KEY, api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
 import { initialOf, roleLabel } from '@/lib/format';
+import { getMyStudy, type StudySelectionDto } from '@/services/studyService';
 import type { Profile, SystemRole } from '@/types/database';
 
 const roles: SystemRole[] = ['student', 'teacher', 'admin'];
@@ -31,6 +32,8 @@ export default function ProfileScreen() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoMenu, setPhotoMenu] = useState(false);
   const [cropAsset, setCropAsset] = useState<{ uri: string; width: number; height: number } | null>(null);
+  const [studies, setStudies] = useState<StudySelectionDto | null>(null);
+  const [openYears, setOpenYears] = useState<number[]>([]);
 
   useEffect(() => {
     if (profile?.full_name) setName(profile.full_name);
@@ -39,6 +42,16 @@ export default function ProfileScreen() {
   useEffect(() => {
     AsyncStorage.getItem(TOKEN_KEY).then(setToken);
   }, [profile?.avatar_url]);
+
+  useEffect(() => {
+    let active = true;
+    getMyStudy().then((data) => {
+      if (active) setStudies(data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [profile?.id]);
 
   function onAvatarPress() {
     if (!profile || uploadingPhoto) return;
@@ -162,7 +175,7 @@ export default function ProfileScreen() {
   async function changeRole(person: Profile, role: SystemRole) {
     if (person.id === profile?.id) return;
     try {
-      await api.put(`/api/users/${person.id}/role`, { role });
+      await api.put<void>(`/api/users/${person.id}/role`, { role });
     } catch (roleError) {
       Alert.alert('Rol değişmedi', errorMessage(roleError));
       return;
@@ -293,9 +306,55 @@ export default function ProfileScreen() {
               </View>
             ))}
           </View>
-        ) : (
-          <Text style={styles.help}>Öğretmen veya yönetici yetkisi için okul yöneticisinin rolünü yükseltmesi gerekir.</Text>
-        )}
+        ) : null}
+
+        {studies ? (
+          <View style={styles.studyCard}>
+            {studies.department_id ? (
+              <>
+                <Text style={styles.studyDept}>{studies.department_name}</Text>
+                {studies.years.map((group) => {
+                  const open = openYears.includes(group.year);
+                  return (
+                    <View key={group.year} style={styles.yearCard}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ expanded: open }}
+                        onPress={() =>
+                          setOpenYears((current) =>
+                            current.includes(group.year) ? current.filter((item) => item !== group.year) : [...current, group.year],
+                          )
+                        }
+                        style={styles.yearHead}
+                      >
+                        <Text style={styles.yearNumber}>{group.year}</Text>
+                        <View style={styles.yearCopy}>
+                          <Text style={styles.courseToggleText}>{group.year}. Sınıf Dersleri</Text>
+                          <Text style={styles.yearMeta}>{group.courses.length} ders</Text>
+                        </View>
+                        <View style={open ? styles.courseChevronOpen : styles.courseChevron}>
+                          <ChevronDown color={colors.wine} size={18} />
+                        </View>
+                      </Pressable>
+                      {open ? (
+                        <View style={styles.yearCourses}>
+                          {group.courses.map((course) => (
+                            <View key={course.id} style={styles.courseItem}>
+                              {course.code ? <Text style={styles.courseCode}>{course.code}</Text> : null}
+                              <Text style={styles.courseName}>{course.name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </>
+            ) : (
+              <Text style={styles.studyEmpty}>Kayıtlı bölüm ve ders seçimin yok.</Text>
+            )}
+          </View>
+        ) : null}
 
         <Pressable style={styles.logout} onPress={logout}>
           <LogOut color={colors.danger} size={18} />
@@ -357,6 +416,47 @@ const styles = StyleSheet.create({
   block: { gap: 10 },
   section: { color: colors.ink, fontSize: 18, fontWeight: '700' },
   help: { color: colors.muted, fontSize: 13, lineHeight: 19 },
+  studyCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 14,
+    gap: 12,
+  },
+  studyDept: { color: colors.ink, fontSize: 16, fontWeight: '700', lineHeight: 22 },
+  studyEmpty: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  yearCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+    backgroundColor: colors.cream,
+  },
+  yearHead: {
+    minHeight: 64,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  yearNumber: { width: 28, fontFamily: displayFont, fontSize: 28, lineHeight: 32, color: colors.wine },
+  yearCopy: { flex: 1, gap: 2 },
+  yearMeta: { color: colors.muted, fontSize: 12 },
+  yearCourses: { borderTopWidth: 1, borderTopColor: colors.line },
+  courseToggleText: { color: colors.ink, fontSize: 15, fontWeight: '700' },
+  courseChevron: { transform: [{ rotate: '0deg' }] },
+  courseChevronOpen: { transform: [{ rotate: '180deg' }] },
+  courseItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.line,
+  },
+  courseCode: { color: colors.wineDeep, fontSize: 12, fontWeight: '800' },
+  courseName: { color: colors.ink, fontSize: 14, lineHeight: 20 },
   ok: { color: colors.sage, fontSize: 14 },
   missing: { color: colors.danger, lineHeight: 20 },
   person: {

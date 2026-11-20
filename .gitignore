@@ -1,6 +1,11 @@
 node_modules/
 .npm-cache/
+mobile/.npm-cache/
 .expo/
+mobile/.expo/
+mobile/.env
+backend/
+.cursor/
 dist/
 web-build/
 .env
@@ -9,6 +14,7 @@ bin/
 obj/
 .vs/
 backend/TrakyaNet.API/wwwroot/uploads/**
+!backend/TrakyaNet.API/wwwroot/uploads/assignments/
 !backend/TrakyaNet.API/wwwroot/uploads/assignments/.gitkeep
 *.jks
 *.p8

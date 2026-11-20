@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { TOKEN_KEY, api } from '@/lib/api';
-import type { Profile } from '@/types/database';
+import { clearPendingStudy, loadEntry } from '@/lib/onboarding';
+import { updateMyStudy } from '@/services/studyService';
+import type { Profile, SystemRole } from '@/types/database';
 
 type SignUpResult = 'session' | 'confirm_email';
 
@@ -14,7 +16,7 @@ type AuthContextValue = {
   session: Session | null;
   profile: Profile | null;
   initializing: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, role: SystemRole) => Promise<void>;
   signUp: (input: { fullName: string; email: string; password: string }) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -25,6 +27,17 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 async function persist(token: string, user: Profile) {
   await AsyncStorage.setItem(TOKEN_KEY, token);
   return user;
+}
+
+async function publishPendingStudy() {
+  const entry = await loadEntry();
+  if (!entry?.study) return;
+  try {
+    await updateMyStudy(entry.study);
+    await clearPendingStudy();
+  } catch {
+    // Uç hazır olana kadar seçim telefonda kalır. Giriş yine tamamlanır.
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -61,12 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, role: SystemRole) => {
     const { data } = await api.post<AuthResponse>('/api/auth/login', {
       email: email.trim(),
       password,
     });
+    if (data.user.system_role !== role) {
+      throw new Error('Bu hesap seçtiğin girişe ait değil.');
+    }
     await persist(data.token, data.user);
+    await publishPendingStudy();
     setSession({ token: data.token });
     setProfile(data.user);
   }, []);
@@ -78,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: input.password,
     });
     await persist(data.token, data.user);
+    await publishPendingStudy();
     setSession({ token: data.token });
     setProfile(data.user);
     return 'session' as const;
