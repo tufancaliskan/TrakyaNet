@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { TOKEN_KEY, api } from '@/lib/api';
+import { DEV_PROFILE_KEY, isDevToken } from '@/lib/devAuth';
 import { clearPendingStudy, loadEntry } from '@/lib/onboarding';
 import { updateMyStudy } from '@/services/studyService';
 import type { Profile, SystemRole } from '@/types/database';
@@ -52,6 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const token = await AsyncStorage.getItem(TOKEN_KEY);
         if (!active) return;
         if (!token) {
+          setSession(null);
+          setProfile(null);
+          return;
+        }
+        // Eski yerel önizleme token'ı kalmışsa temizle; gerçek API'ye gönderme.
+        if (isDevToken(token)) {
+          await AsyncStorage.multiRemove([TOKEN_KEY, DEV_PROFILE_KEY]);
           setSession(null);
           setProfile(null);
           return;

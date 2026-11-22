@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { GraduationCap } from 'lucide-react-native';
 
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { FormModal } from '@/components/FormModal';
 import { Button, EmptyState, InlineError, PageHeader, SafeScreen, TextField } from '@/components/ui';
-import { colors, shadow } from '@/constants/theme';
+import { colors, softShadow } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
@@ -136,7 +137,7 @@ export default function ClassesScreen() {
         renderItem={({ item }) => {
           const teaching = item.teacher_id === profile?.id;
           return (
-            <Pressable style={styles.card} onPress={() => router.push(`/class/${item.id}`)}>
+            <AnimatedPressable style={styles.card} onPress={() => router.push(`/class/${item.id}`)}>
               <View style={styles.cardIcon}>
                 <Text style={styles.cardInitial}>{initialOf(item.name)}</Text>
               </View>
@@ -145,7 +146,7 @@ export default function ClassesScreen() {
                 <Text style={styles.cardMeta}>{teaching ? 'Senin sınıfın' : item.teacher_name}</Text>
               </View>
               {teaching ? <Text style={styles.code}>{item.code}</Text> : null}
-            </Pressable>
+            </AnimatedPressable>
           );
         }}
       />
@@ -180,16 +181,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
-    ...shadow,
+    borderRadius: 20,
+    padding: 16,
+    ...softShadow,
   },
   cardIcon: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: colors.goldSoft,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,7 +1,6 @@
-import { type ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -11,9 +10,11 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-import { colors, displayFont, shadow } from '@/constants/theme';
+import { AnimatedPressable } from '@/components/AnimatedPressable';
+import { colors, displayFont, softShadow } from '@/constants/theme';
 import { roleLabel } from '@/lib/format';
 import type { SystemRole } from '@/types/database';
 
@@ -74,17 +75,17 @@ export function Button({
 }) {
   const busy = loading || disabled;
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       disabled={busy}
+      haptic={!busy}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         variant === 'primary' && styles.buttonPrimary,
         variant === 'secondary' && styles.buttonSecondary,
         variant === 'ghost' && styles.buttonGhost,
         variant === 'danger' && styles.buttonDanger,
-        pressed && !busy && styles.pressed,
         busy && styles.disabled,
       ]}
     >
@@ -101,7 +102,7 @@ export function Button({
           {label}
         </Text>
       )}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -153,18 +154,42 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (value: T) => void;
 }) {
+  const index = Math.max(
+    0,
+    options.findIndex((option) => option.value === value),
+  );
+  const width = useSharedValue(0);
+  const progress = useSharedValue(index);
+
+  useEffect(() => {
+    progress.value = withSpring(index, { damping: 18, stiffness: 180 });
+  }, [index, progress]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    width: Math.max(width.value / Math.max(options.length, 1) - 0, 0),
+    transform: [{ translateX: progress.value * (width.value / Math.max(options.length, 1)) }],
+  }));
+
   return (
-    <View style={styles.segment}>
+    <View
+      style={styles.segment}
+      onLayout={(event) => {
+        width.value = event.nativeEvent.layout.width - 8;
+      }}
+    >
+      <Animated.View style={[styles.segmentPill, pillStyle]} />
       {options.map((option) => {
         const active = option.value === value;
         return (
-          <Pressable
+          <AnimatedPressable
             key={option.value}
+            haptic
+            scaleTo={0.98}
             onPress={() => onChange(option.value)}
-            style={[styles.segmentItem, active && styles.segmentItemActive]}
+            style={styles.segmentItem}
           >
             <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>{option.label}</Text>
-          </Pressable>
+          </AnimatedPressable>
         );
       })}
     </View>
@@ -227,12 +252,13 @@ const styles = StyleSheet.create({
     color: colors.gold,
     fontSize: 12,
     fontWeight: '700',
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   rule: {
     width: 36,
     height: 2,
+    borderRadius: 2,
     backgroundColor: colors.gold,
     marginTop: 2,
     marginBottom: 4,
@@ -240,28 +266,30 @@ const styles = StyleSheet.create({
   title: {
     color: colors.ink,
     fontFamily: displayFont,
-    fontSize: 30,
+    fontSize: 28,
     lineHeight: 34,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   subtitle: {
     color: colors.muted,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
   },
   button: {
-    minHeight: 48,
-    borderRadius: 14,
+    minHeight: 50,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
   buttonPrimary: {
     backgroundColor: colors.wine,
+    ...softShadow,
   },
   buttonSecondary: {
     backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.line,
+    ...softShadow,
   },
   buttonGhost: {
     backgroundColor: 'transparent',
@@ -280,53 +308,56 @@ const styles = StyleSheet.create({
   buttonLabelGhost: {
     color: colors.wine,
   },
-  pressed: {
-    opacity: 0.86,
-  },
   disabled: {
     opacity: 0.55,
   },
   field: {
-    gap: 6,
+    gap: 8,
   },
   fieldLabel: {
     color: colors.ink,
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   input: {
-    minHeight: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
+    minHeight: 50,
+    borderRadius: 16,
     backgroundColor: colors.white,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     color: colors.ink,
     fontSize: 16,
+    ...softShadow,
   },
   inputMultiline: {
     minHeight: 110,
-    paddingTop: 12,
+    paddingTop: 14,
   },
   segment: {
     flexDirection: 'row',
     marginHorizontal: 20,
     marginBottom: 12,
     padding: 4,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: '#E9E1D6',
-    gap: 4,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  segmentPill: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    ...softShadow,
   },
   segmentItem: {
     flex: 1,
-    minHeight: 36,
-    borderRadius: 12,
+    minHeight: 38,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  segmentItemActive: {
-    backgroundColor: colors.card,
-    ...shadow,
+    zIndex: 1,
   },
   segmentLabel: {
     color: colors.muted,
@@ -356,6 +387,8 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontFamily: displayFont,
     fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 28,
     textAlign: 'center',
   },
   emptyBody: {

@@ -18,15 +18,23 @@ export const colors = {
 };
 
 export const displayFont = Platform.select<TextStyle['fontFamily']>({
-  ios: 'Georgia',
-  android: 'serif',
-  default: 'serif',
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
 });
 
-export const shadow: ViewStyle = {
-  shadowColor: '#1C1418',
-  shadowOpacity: 0.07,
-  shadowRadius: 14,
-  shadowOffset: { width: 0, height: 8 },
+export const bodyFont = Platform.select<TextStyle['fontFamily']>({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+});
+
+export const softShadow: ViewStyle = {
+  shadowColor: '#3A2E18',
+  shadowOpacity: 0.06,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 6 },
   elevation: 2,
 };
+
+export const shadow: ViewStyle = softShadow;

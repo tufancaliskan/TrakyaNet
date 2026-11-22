@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Button, InlineError, TextField } from '@/components/ui';
-import { colors, displayFont, shadow } from '@/constants/theme';
+import { colors, displayFont, softShadow } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { errorMessage } from '@/lib/errors';
 import { loadEntry } from '@/lib/onboarding';
@@ -26,23 +28,7 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [allowed, setAllowed] = useState(false);
-  const reveal = useRef(new Animated.Value(1)).current;
-  const skipReveal = useRef(true);
   const selected = gates.find((item) => item.role === gate);
-
-  useEffect(() => {
-    if (skipReveal.current) {
-      skipReveal.current = false;
-      return;
-    }
-    reveal.setValue(0);
-    Animated.timing(reveal, {
-      toValue: 1,
-      duration: 480,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [gate, reveal]);
 
   useEffect(() => {
     loadEntry().then((saved) => {
@@ -78,7 +64,7 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={[styles.hero, { paddingTop: insets.top + 18 }]}>
+        <Animated.View entering={FadeInDown.duration(480)} style={[styles.hero, { paddingTop: insets.top + 18 }]}>
           <View style={styles.logoWrap}>
             <Image
               source={require('../../assets/trakya-logo.png')}
@@ -91,59 +77,48 @@ export default function LoginScreen() {
             <Text style={styles.kicker}>OKUL AĞI</Text>
             <Text style={styles.tag}>Duyuru, ödev ve kulüp aynı çatı altında.</Text>
           </View>
-        </View>
-        <View style={styles.sheet}>
-          <Animated.View
-            style={[
-              styles.panel,
-              {
-                opacity: reveal,
-                transform: [
-                  {
-                    translateY: reveal.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [16, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-          {selected ? (
-            <>
-              <Text style={styles.heading}>{selected.title}</Text>
-              <TextField
-                label="E-posta"
-                value={email}
-                onChangeText={setEmail}
-                placeholder="ad@okul.edu.tr"
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
-              <TextField
-                label="Şifre"
-                value={password}
-                onChangeText={setPassword}
-                placeholder="En az 6 karakter"
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              <InlineError message={error} />
-              <Button label="Giriş yap" onPress={onSubmit} loading={loading} />
-              <Button label="Seçim paneline dön" variant="secondary" onPress={() => router.push('/welcome')} />
-              {gate === 'student' ? (
-                <Link href="/register" asChild>
-                  <Pressable>
-                    <Text style={styles.link}>
-                      Hesabın yok mu? <Text style={styles.linkStrong}>Kayıt ol</Text>
-                    </Text>
-                  </Pressable>
-                </Link>
-              ) : null}
-            </>
-          ) : null}
-          </Animated.View>
-        </View>
+        </Animated.View>
+        <Animated.View entering={FadeInUp.delay(120).duration(480)} style={styles.sheet}>
+          <View style={styles.panel}>
+            {selected ? (
+              <>
+                <Text style={styles.heading}>{selected.title}</Text>
+                <TextField
+                  label="E-posta"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="ad@okul.edu.tr"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                />
+                <TextField
+                  label="Şifre"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="En az 6 karakter"
+                  secureTextEntry
+                  autoCapitalize="none"
+                />
+                <InlineError message={error} />
+                <Button label="Giriş yap" onPress={onSubmit} loading={loading} />
+                <Button
+                  label="Seçim paneline dön"
+                  variant="secondary"
+                  onPress={() => router.replace('/welcome?step=role')}
+                />
+                {gate === 'student' ? (
+                  <Link href="/register" asChild>
+                    <AnimatedPressable>
+                      <Text style={styles.link}>
+                        Hesabın yok mu? <Text style={styles.linkStrong}>Kayıt ol</Text>
+                      </Text>
+                    </AnimatedPressable>
+                  </Link>
+                ) : null}
+              </>
+            ) : null}
+          </View>
+        </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -171,14 +146,14 @@ const styles = StyleSheet.create({
     color: colors.cream,
     fontSize: 22,
     fontWeight: '800',
-    letterSpacing: 1.4,
+    letterSpacing: 1.2,
     textAlign: 'left',
   },
   tag: {
     marginTop: 6,
     color: colors.goldSoft,
     fontSize: 16,
-    lineHeight: 22,
+    lineHeight: 23,
     textAlign: 'left',
   },
   sheet: {
@@ -187,25 +162,18 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
     padding: 24,
+    ...softShadow,
   },
   panel: { gap: 14 },
-  heading: { fontFamily: displayFont, fontSize: 28, color: colors.ink, marginBottom: 4 },
-  lead: { color: colors.muted, fontSize: 15, marginTop: -6 },
-  choice: {
-    minHeight: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.card,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    ...shadow,
+  heading: {
+    fontFamily: displayFont,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    color: colors.ink,
+    marginBottom: 4,
   },
-  choiceText: { flex: 1, color: colors.ink, fontSize: 16, fontWeight: '700' },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  backText: { color: colors.wine, fontWeight: '700' },
-  link: { textAlign: 'center', color: colors.muted, fontSize: 14 },
+  link: { textAlign: 'center', color: colors.muted, fontSize: 14, lineHeight: 20 },
   linkStrong: { color: colors.wine, fontWeight: '700' },
 });

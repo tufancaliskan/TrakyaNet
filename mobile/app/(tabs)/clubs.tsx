@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Users } from 'lucide-react-native';
 
+import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { FormModal } from '@/components/FormModal';
 import { Button, EmptyState, InlineError, PageHeader, SafeScreen, TextField } from '@/components/ui';
-import { colors, shadow } from '@/constants/theme';
+import { colors, softShadow } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/lib/api';
 import { errorMessage } from '@/lib/errors';
@@ -102,7 +103,7 @@ export default function ClubsScreen() {
           />
         }
         renderItem={({ item }) => (
-          <Pressable style={styles.card} onPress={() => router.push(`/club/${item.id}`)}>
+          <AnimatedPressable style={styles.card} onPress={() => router.push(`/club/${item.id}`)}>
             <View style={styles.mark}>
               <Text style={styles.markText}>{initialOf(item.name)}</Text>
             </View>
@@ -113,7 +114,7 @@ export default function ClubsScreen() {
               </Text>
             </View>
             <Text style={styles.role}>{item.membership ? clubRoleLabel[item.membership] : 'Katıl'}</Text>
-          </Pressable>
+          </AnimatedPressable>
         )}
       />
       <FormModal visible={open} title="Yeni kulüp" onClose={() => setOpen(false)}>
@@ -143,11 +144,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.line,
-    ...shadow,
+    borderRadius: 20,
+    padding: 16,
+    ...softShadow,
   },
   mark: {
     width: 46,

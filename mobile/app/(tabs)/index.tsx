@@ -3,15 +3,16 @@ import { StyleSheet, View } from 'react-native';
 
 import { AnnouncementBoard } from '@/components/AnnouncementBoard';
 import { RealtimeChat } from '@/components/RealtimeChat';
+import { RolePreviewBadge } from '@/components/RolePreviewBadge';
 import { PageHeader, SafeScreen, Segmented } from '@/components/ui';
-import { useAuth } from '@/context/AuthContext';
+import { useActiveRole } from '@/hooks/useActiveRole';
 
 type SchoolTab = 'feed' | 'chat';
 
 export default function SchoolScreen() {
-  const { profile } = useAuth();
+  const { role, isAdmin } = useActiveRole();
   const [tab, setTab] = useState<SchoolTab>('feed');
-  const canPost = profile?.system_role === 'admin';
+  const canPost = isAdmin;
 
   return (
     <SafeScreen>
@@ -21,6 +22,7 @@ export default function SchoolScreen() {
         title="Genel Alan"
         subtitle="Tüm okulun duyurusu ve sohbeti"
       />
+      <RolePreviewBadge role={role} />
       <Segmented
         value={tab}
         onChange={setTab}
