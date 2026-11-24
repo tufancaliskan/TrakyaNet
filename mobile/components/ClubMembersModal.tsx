@@ -17,7 +17,9 @@ type Props = {
 };
 
 function isManagement(member: ClubMemberDetailed, club: ClubDetail) {
-  return member.role_ids.some((id) => club.roles.find((r) => r.id === id)?.permissions.can_edit_club);
+  const roleIds = member.role_ids ?? [];
+  const roles = club.roles ?? [];
+  return roleIds.some((id) => roles.find((r) => r.id === id)?.permissions.can_edit_club);
 }
 
 export function ClubMembersModal({ visible, club, canManage, onClose, onChanged }: Props) {
@@ -32,12 +34,14 @@ export function ClubMembersModal({ visible, club, canManage, onClose, onChanged 
   }, [visible]);
 
   const groups = useMemo(() => {
-    const management = club.members.filter((m) => isManagement(m, club));
+    const members = club.members ?? [];
+    const departmentsList = club.departments ?? [];
+    const management = members.filter((m) => isManagement(m, club));
     const managementIds = new Set(management.map((m) => m.user_id));
-    const departments = club.departments.map((dept) => ({
+    const departments = departmentsList.map((dept) => ({
       dept,
-      lead: club.members.find((m) => m.user_id === dept.lead_user_id) ?? null,
-      members: club.members.filter(
+      lead: members.find((m) => m.user_id === dept.lead_user_id) ?? null,
+      members: members.filter(
         (m) => m.department_id === dept.id && m.user_id !== dept.lead_user_id && !managementIds.has(m.user_id),
       ),
     }));
@@ -48,15 +52,15 @@ export function ClubMembersModal({ visible, club, canManage, onClose, onChanged 
         ...d.members.map((m) => m.user_id),
       ]),
     ]);
-    const general = club.members.filter((m) => !assigned.has(m.user_id));
+    const general = members.filter((m) => !assigned.has(m.user_id));
     return { management, departments, general };
   }, [club]);
 
   function openMember(member: ClubMemberDetailed) {
     if (!canManage) return;
     setSelected(member);
-    setRoleIds([...member.role_ids]);
-    setDepartmentId(member.department_id);
+    setRoleIds([...(member.role_ids ?? [])]);
+    setDepartmentId(member.department_id ?? null);
     setError(null);
   }
 
@@ -144,7 +148,7 @@ export function ClubMembersModal({ visible, club, canManage, onClose, onChanged 
       >
         <Text style={styles.section}>Özel roller</Text>
         <View style={styles.chips}>
-          {club.roles.map((role) => {
+          {(club.roles ?? []).map((role) => {
             const active = roleIds.includes(role.id);
             return (
               <Pressable
@@ -165,7 +169,7 @@ export function ClubMembersModal({ visible, club, canManage, onClose, onChanged 
           >
             <Text style={[styles.chipText, departmentId === null && styles.chipTextActive]}>Genel</Text>
           </Pressable>
-          {club.departments.map((dept) => {
+          {(club.departments ?? []).map((dept) => {
             const active = departmentId === dept.id;
             return (
               <Pressable

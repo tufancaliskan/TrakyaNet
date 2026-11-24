@@ -122,7 +122,7 @@ export default function ClubDetailScreen() {
         <EmptyState title="Önce katıl" body="Duyurular yalnızca kulüp üyelerine açık." />
       )}
 
-      {perms.can_edit_club ? (
+      {perms.can_edit_club && manageOpen ? (
         <ClubManageModal
           visible={manageOpen}
           club={club}
@@ -131,13 +131,15 @@ export default function ClubDetailScreen() {
         />
       ) : null}
 
-      <ClubMembersModal
-        visible={membersOpen}
-        club={club}
-        canManage={perms.can_manage_members}
-        onClose={() => setMembersOpen(false)}
-        onChanged={load}
-      />
+      {membersOpen ? (
+        <ClubMembersModal
+          visible={membersOpen}
+          club={club}
+          canManage={perms.can_manage_members}
+          onClose={() => setMembersOpen(false)}
+          onChanged={load}
+        />
+      ) : null}
     </View>
   );
 }

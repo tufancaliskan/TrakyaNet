@@ -13,26 +13,24 @@ import { useActiveRole } from '@/hooks/useActiveRole';
 import { errorMessage } from '@/lib/errors';
 import { canManageClasses } from '@/lib/format';
 import { createClassroom, getMyClassrooms } from '@/services/classroomService';
-import { getCourseStudents, getCourses, saveMyCourses } from '@/services/courseService';
+import { getCourseStudents, getCourses } from '@/services/courseService';
 import type { Classroom, Course, CourseStudent } from '@/types/classroom';
 
 export default function ClassesScreen() {
   const { profile } = useAuth();
-  const { role, isStudent } = useActiveRole();
+  const { role } = useActiveRole();
   const canCreate = canManageClasses(role ?? undefined);
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [coursePickOpen, setCoursePickOpen] = useState(false);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState(1);
   const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [students, setStudents] = useState<CourseStudent[]>([]);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [pickedCourseIds, setPickedCourseIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -73,7 +71,7 @@ export default function ClassesScreen() {
     try {
       setCourses(await getCourses('bst', 1));
     } catch (courseError) {
-      setFormError(errorMessage(courseError, 'Dersler yüklenemedi.'));
+      setFormError(errorMessage(courseError, 'Dersler yüklenemedi. Bu uç henüz hazır olmayabilir.'));
     }
   }
 
@@ -132,48 +130,12 @@ export default function ClassesScreen() {
     }
   }
 
-  async function openCoursePick() {
-    setFormError(null);
-    setGrade(1);
-    setPickedCourseIds([]);
-    setCoursePickOpen(true);
-    try {
-      setCourses(await getCourses('bst', 1));
-    } catch (courseError) {
-      setFormError(errorMessage(courseError, 'Dersler yüklenemedi.'));
-    }
-  }
-
-  async function changeStudentGrade(next: number) {
-    setGrade(next);
-    try {
-      setCourses(await getCourses('bst', next));
-    } catch (courseError) {
-      setFormError(errorMessage(courseError, 'Dersler yüklenemedi.'));
-    }
-  }
-
-  function toggleCourse(id: string) {
-    setPickedCourseIds((current) =>
-      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
-    );
-  }
-
-  async function submitCourses() {
-    if (pickedCourseIds.length === 0) {
-      setFormError('En az bir ders seç.');
+  function openClassroom(item: Classroom) {
+    if (item.course_id) {
+      router.push({ pathname: '/classroom/[id]', params: { id: item.id } });
       return;
     }
-    setSaving(true);
-    setFormError(null);
-    try {
-      await saveMyCourses({ grade, course_ids: pickedCourseIds });
-      setCoursePickOpen(false);
-    } catch (saveError) {
-      setFormError(errorMessage(saveError, 'Dersler kaydedilemedi.'));
-    } finally {
-      setSaving(false);
-    }
+    router.push({ pathname: '/class/[id]', params: { id: item.id } });
   }
 
   return (
@@ -181,12 +143,11 @@ export default function ClassesScreen() {
       <PageHeader
         kicker="Okul"
         title="Sınıflarım"
-        subtitle={canCreate ? 'Ders grubu aç, öğrenci davet et' : 'Davetlerin ve üyesi olduğun sınıflar'}
+        subtitle={canCreate ? 'Ders grubu aç, öğrenci davet et' : 'Üyesi olduğun sınıflar'}
         trailing={<InvitationBell />}
       />
       <View style={styles.actions}>
         {canCreate ? <Button label="Sınıf oluştur" onPress={() => void openCreate()} /> : null}
-        {isStudent ? <Button label="Ders seç" variant="secondary" onPress={() => void openCoursePick()} /> : null}
       </View>
       <InlineError message={error} />
       <FlatList
@@ -197,15 +158,16 @@ export default function ClassesScreen() {
         ListEmptyComponent={
           <EmptyState
             title="Sınıf yok"
-            body={canCreate ? 'Yeni bir sınıf grubu oluştur.' : 'Davetleri zilden kabul ettiğinde burada görünür.'}
+            body={
+              canCreate
+                ? 'Yeni bir sınıf grubu oluştur.'
+                : 'Akademisyen seni bir sınıfa eklediğinde burada görünür.'
+            }
             icon={<GraduationCap color={colors.wine} size={28} />}
           />
         }
         renderItem={({ item }) => (
-          <AnimatedPressable
-            style={styles.card}
-            onPress={() => router.push({ pathname: '/classroom/[id]', params: { id: item.id } })}
-          >
+          <AnimatedPressable style={styles.card} onPress={() => openClassroom(item)}>
             <Text style={styles.cardTitle}>{item.name}</Text>
             <Text style={styles.cardMeta}>
               {item.course_name} · {item.teacher_name} · {item.member_count} üye
@@ -278,47 +240,6 @@ export default function ClassesScreen() {
             })}
           </>
         ) : null}
-        <InlineError message={formError} />
-      </FormModal>
-
-      <FormModal
-        visible={coursePickOpen}
-        title="Ders seç"
-        onClose={() => setCoursePickOpen(false)}
-        footer={<Button label="Kaydet" onPress={() => void submitCourses()} loading={saving} />}
-      >
-        <Text style={styles.label}>Sınıf düzeyi</Text>
-        <View style={styles.row}>
-          {[1, 2, 3, 4].map((value) => (
-            <Pressable
-              key={value}
-              onPress={() => void changeStudentGrade(value)}
-              style={[styles.chip, grade === value && styles.chipActive]}
-            >
-              <Text style={[styles.chipText, grade === value && styles.chipTextActive]}>{value}. Sınıf</Text>
-            </Pressable>
-          ))}
-        </View>
-        {courses.map((course) => {
-          const active = pickedCourseIds.includes(course.id);
-          return (
-            <Pressable
-              key={course.id}
-              onPress={() => toggleCourse(course.id)}
-              style={[styles.option, active && styles.optionActive]}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.optionTitle, active && styles.optionTitleActive]}>
-                  {course.code} {course.name}
-                </Text>
-                <Text style={[styles.optionMeta, active && styles.optionMetaActive]}>
-                  {course.teacher.full_name}
-                </Text>
-              </View>
-              {active ? <Check color={colors.cream} size={18} /> : null}
-            </Pressable>
-          );
-        })}
         <InlineError message={formError} />
       </FormModal>
     </SafeScreen>

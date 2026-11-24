@@ -157,7 +157,7 @@ export function ClubManageModal({ visible, club, onClose, onChanged }: Props) {
       <Button label="Bilgileri kaydet" onPress={saveInfo} loading={saving} />
 
       <Text style={styles.section}>Özel roller</Text>
-      {club.roles.map((role) => (
+      {(club.roles ?? []).map((role) => (
         <View key={role.id} style={styles.row}>
           <View style={[styles.dot, { backgroundColor: role.color }]} />
           <Text style={styles.rowTitle}>{role.name}</Text>
@@ -197,7 +197,7 @@ export function ClubManageModal({ visible, club, onClose, onChanged }: Props) {
       <Button label="Rol ekle" onPress={addRole} loading={saving} variant="secondary" />
 
       <Text style={styles.section}>Alt birimler (alanlar)</Text>
-      {club.departments.map((dept) => (
+      {(club.departments ?? []).map((dept) => (
         <View key={dept.id} style={styles.deptCard}>
           <Text style={styles.rowTitle}>{dept.name}</Text>
           <Text style={styles.meta}>
