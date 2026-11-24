@@ -1,17 +1,13 @@
-import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AnnouncementBoard } from '@/components/AnnouncementBoard';
-import { RealtimeChat } from '@/components/RealtimeChat';
+import { InvitationBell } from '@/components/InvitationBell';
 import { RolePreviewBadge } from '@/components/RolePreviewBadge';
-import { PageHeader, SafeScreen, Segmented } from '@/components/ui';
+import { PageHeader, SafeScreen } from '@/components/ui';
 import { useActiveRole } from '@/hooks/useActiveRole';
-
-type SchoolTab = 'feed' | 'chat';
 
 export default function SchoolScreen() {
   const { role, isAdmin } = useActiveRole();
-  const [tab, setTab] = useState<SchoolTab>('feed');
   const canPost = isAdmin;
 
   return (
@@ -20,28 +16,17 @@ export default function SchoolScreen() {
         kicker="TrakyaNet"
         kickerStyle={styles.brand}
         title="Genel Alan"
-        subtitle="Tüm okulun duyurusu ve sohbeti"
+        subtitle="Tüm okulun duyuruları"
+        trailing={<InvitationBell />}
       />
       <RolePreviewBadge role={role} />
-      <Segmented
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'feed', label: 'Duyurular' },
-          { value: 'chat', label: 'Sohbet' },
-        ]}
-      />
       <View style={styles.body}>
-        {tab === 'feed' ? (
-          <AnnouncementBoard
-            scopeType="school"
-            scopeId={null}
-            canPost={canPost}
-            hint="Okul duyurularını yalnızca yöneticiler ekler."
-          />
-        ) : (
-          <RealtimeChat channelType="school" channelId={null} keyboardOffset={8} includeBottomInset={false} />
-        )}
+        <AnnouncementBoard
+          scopeType="school"
+          scopeId={null}
+          canPost={canPost}
+          hint="Okul duyurularını yalnızca yöneticiler ekler."
+        />
       </View>
     </SafeScreen>
   );

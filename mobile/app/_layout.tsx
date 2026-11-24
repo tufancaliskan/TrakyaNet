@@ -56,6 +56,7 @@ function RootNavigator() {
       <Stack.Protected guard={!!session}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="class/[id]" options={detailHeader} />
+        <Stack.Screen name="classroom/[id]" options={detailHeader} />
         <Stack.Screen name="club/[id]" options={detailHeader} />
       </Stack.Protected>
       <Stack.Protected guard={!session}>

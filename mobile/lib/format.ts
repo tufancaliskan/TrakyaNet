@@ -32,8 +32,8 @@ export function parseDueDate(value: string) {
 
 export const roleLabel: Record<SystemRole, string> = {
   student: 'Öğrenci',
-  teacher: 'Öğretmen',
-  admin: 'Yönetici',
+  teacher: 'Akademisyen',
+  admin: 'İdari',
 };
 
 export const clubRoleLabel: Record<ClubRole, string> = {
@@ -42,7 +42,7 @@ export const clubRoleLabel: Record<ClubRole, string> = {
 };
 
 export function canManageClasses(role: SystemRole | undefined) {
-  return role === 'teacher';
+  return role === 'teacher' || role === 'admin';
 }
 
 export function initialOf(name: string) {

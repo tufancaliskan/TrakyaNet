@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
-import { GraduationCap, Megaphone, UserRound, Users } from 'lucide-react-native';
+import { GraduationCap, Megaphone, Shield, UserRound, Users } from 'lucide-react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import { colors, softShadow } from '@/constants/theme';
+import { useActiveRole } from '@/hooks/useActiveRole';
 
 function TabIcon({
   focused,
@@ -21,7 +22,7 @@ function TabIcon({
   const tint = typeof color === 'string' && color ? color : colors.muted;
 
   useEffect(() => {
-    scale.value = withSpring(focused ? 1.12 : 1, { damping: 12, stiffness: 220 });
+    scale.value = withSpring(focused ? 1.06 : 1, { damping: 28, stiffness: 400, overshootClamping: true });
   }, [focused, scale]);
 
   const style = useAnimatedStyle(() => ({
@@ -36,6 +37,8 @@ function TabIcon({
 }
 
 export default function TabsLayout() {
+  const { isAdmin } = useActiveRole();
+
   return (
     <Tabs
       screenOptions={{
@@ -77,6 +80,16 @@ export default function TabsLayout() {
           title: 'Kulüpler',
           tabBarIcon: ({ color, size, focused }) => (
             <TabIcon focused={focused} color={color} size={size} Icon={Users} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Yönetim',
+          href: isAdmin ? undefined : null,
+          tabBarIcon: ({ color, size, focused }) => (
+            <TabIcon focused={focused} color={color} size={size} Icon={Shield} />
           ),
         }}
       />

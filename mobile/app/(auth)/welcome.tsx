@@ -62,7 +62,7 @@ function YearAccordion({
   }));
 
   return (
-    <Animated.View layout={Layout.springify().damping(36).stiffness(280).mass(0.6)} style={styles.yearCard}>
+    <Animated.View layout={Layout.springify().damping(42).stiffness(380).mass(0.5)} style={styles.yearCard}>
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}

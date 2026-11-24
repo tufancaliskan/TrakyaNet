@@ -162,7 +162,7 @@ export function Segmented<T extends string>({
   const progress = useSharedValue(index);
 
   useEffect(() => {
-    progress.value = withSpring(index, { damping: 18, stiffness: 180 });
+    progress.value = withSpring(index, { damping: 32, stiffness: 420, overshootClamping: true });
   }, [index, progress]);
 
   const pillStyle = useAnimatedStyle(() => ({

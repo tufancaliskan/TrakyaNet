@@ -9,6 +9,7 @@ export type Profile = {
   email?: string;
   avatar_url: string | null;
   system_role: SystemRole;
+  can_create_club?: boolean;
   created_at: string;
 };
 

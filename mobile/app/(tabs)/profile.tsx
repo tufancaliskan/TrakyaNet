@@ -7,10 +7,12 @@ import { Camera, ChevronDown, Image as GalleryIcon, LogOut, Trash2, X } from 'lu
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CircularCropper } from '@/components/CircularCropper';
+import { DevRolePanel } from '@/components/DevRoleSwitcher';
 import { Button, InlineError, PageHeader, RoleBadge, SafeScreen, TextField } from '@/components/ui';
 import { colors, displayFont } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { TOKEN_KEY, api } from '@/lib/api';
+import { ENABLE_DEV_ROLE_LOGIN } from '@/lib/devAuth';
 import { errorMessage } from '@/lib/errors';
 import { initialOf, roleLabel } from '@/lib/format';
 import { getMyStudy, type StudySelectionDto } from '@/services/studyService';
@@ -20,7 +22,7 @@ const roles: SystemRole[] = ['student', 'teacher', 'admin'];
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { profile, signOut, refreshProfile } = useAuth();
+  const { profile, signOut, refreshProfile, switchPreviewRole, isDevSession } = useAuth();
   const [name, setName] = useState(profile?.full_name ?? '');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -235,9 +237,14 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {profile ? (
           <View style={styles.hero}>
-            <Pressable accessibilityLabel="Profil fotoğrafı" onPress={onAvatarPress} disabled={uploadingPhoto} style={styles.avatarWrap}>
+            <Pressable
+              accessibilityLabel="Profil fotoğrafı"
+              onPress={onAvatarPress}
+              disabled={uploadingPhoto || isDevSession}
+              style={styles.avatarWrap}
+            >
               <View style={styles.avatar}>
-                {profile.avatar_url && token ? (
+                {profile.avatar_url && token && !isDevSession ? (
                   <Image
                     source={{
                       uri: `${process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '')}/api/auth/me/avatar?access_token=${encodeURIComponent(token)}&v=${encodeURIComponent(profile.avatar_url)}`,
@@ -248,16 +255,19 @@ export default function ProfileScreen() {
                   <Text style={styles.avatarText}>{initialOf(profile.full_name)}</Text>
                 )}
               </View>
-              <View style={styles.photoBadge}>
-                {uploadingPhoto ? (
-                  <ActivityIndicator color={colors.cream} size="small" />
-                ) : (
-                  <Camera color={colors.cream} size={14} />
-                )}
-              </View>
+              {!isDevSession ? (
+                <View style={styles.photoBadge}>
+                  {uploadingPhoto ? (
+                    <ActivityIndicator color={colors.cream} size="small" />
+                  ) : (
+                    <Camera color={colors.cream} size={14} />
+                  )}
+                </View>
+              ) : null}
             </Pressable>
             <RoleBadge role={profile.system_role} />
             <Text style={styles.email}>{profile.email}</Text>
+            {isDevSession ? <Text style={styles.devNote}>Yerel geliştirici önizlemesi</Text> : null}
           </View>
         ) : (
           <Text style={styles.missing}>
@@ -265,7 +275,11 @@ export default function ProfileScreen() {
           </Text>
         )}
 
-        {profile ? (
+        {ENABLE_DEV_ROLE_LOGIN ? (
+          <DevRolePanel current={profile?.system_role ?? null} onSelect={(next) => void switchPreviewRole(next)} />
+        ) : null}
+
+        {profile && !isDevSession ? (
           <View style={styles.block}>
             <TextField label="Ad soyad" value={name} onChangeText={setName} autoCapitalize="words" />
             <Button label="Adı kaydet" onPress={saveName} loading={saving} variant="secondary" />
@@ -275,7 +289,7 @@ export default function ProfileScreen() {
         {message ? <Text style={styles.ok}>{message}</Text> : null}
         <InlineError message={error} />
 
-        {profile?.system_role === 'admin' ? (
+        {profile?.system_role === 'admin' && !isDevSession ? (
           <View style={styles.block}>
             <Text style={styles.section}>Rol yönetimi</Text>
             <Text style={styles.help}>Ada göre ara, sonra öğrenci, öğretmen veya yönetici yap. Kendi rolünü buradan değiştiremezsin.</Text>
@@ -413,6 +427,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   email: { color: colors.muted, fontSize: 14 },
+  devNote: { color: colors.wine, fontSize: 12, fontWeight: '700' },
   block: { gap: 10 },
   section: { color: colors.ink, fontSize: 18, fontWeight: '700' },
   help: { color: colors.muted, fontSize: 13, lineHeight: 19 },

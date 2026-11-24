@@ -41,12 +41,12 @@ export function AnimatedPressable({
       }}
       onPressIn={(event) => {
         if (!disabled) {
-          scale.value = withSpring(scaleTo, { damping: 18, stiffness: 320 });
+          scale.value = withSpring(scaleTo, { damping: 28, stiffness: 480, overshootClamping: true });
         }
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        scale.value = withSpring(1, { damping: 14, stiffness: 220 });
+        scale.value = withSpring(1, { damping: 26, stiffness: 420, overshootClamping: true });
         onPressOut?.(event);
       }}
       style={[style, animatedStyle]}

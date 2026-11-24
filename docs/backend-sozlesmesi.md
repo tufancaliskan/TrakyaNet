@@ -189,8 +189,351 @@ Kurallar:
 
 Başarılı cevap, `GET /api/me/study` ile aynı dolu gövdedir.
 
+## Hedef: ders, sınıf grubu, davet, materyal, idari kullanıcı
+
+Mobil arayüz sınıf gruplarını, davetleri, not/ödev materyallerini ve idari kullanıcı yönetimini aşağıdaki uçlara bağlar. Mobil yalnızca bu adreslere istek atar (`USE_MOCK` kaldırıldı).
+
+Wire formatı `snake_case` kalır. Roller `student` | `teacher` | `admin` olur (UI: Öğrenci / Akademisyen / İdari). Eski join kodlu `/api/classes` ve `/api/assignments` uçları geriye dönük belgede kalır; yeni ekranlar `/api/classrooms`, `/api/invitations` ve `/api/classrooms/{id}/materials` yolunu kullanır.
+
+Tüm korumalı isteklerde `Authorization: Bearer {token}` gerekir. Hata gövdesi `{ "message": "..." }` olur.
+
+### GET /api/courses
+
+Sorgu: `department_id` (zorunlu), `grade` (`1`–`4`, zorunlu). Bölüm ve sınıf düzeyine göre dersleri ve dersi veren akademisyeni döner.
+
+```json
+[
+  {
+    "id": "bst:BST101",
+    "code": "BST 101",
+    "name": "İktisada Giriş",
+    "grade": 1,
+    "department_id": "bst",
+    "teacher": {
+      "id": "guid",
+      "full_name": "Ayşe Öğretim"
+    }
+  }
+]
+```
+
+### PUT /api/users/me/courses
+
+Öğrencinin sınıf düzeyini ve seçtiği dersleri kaydeder.
+
+```json
+{ "grade": 1, "course_ids": ["bst:BST101", "bst:BST103"] }
+```
+
+Başarılı cevap 200:
+
+```json
+{ "grade": 1, "course_ids": ["bst:BST101", "bst:BST103"] }
+```
+
+### GET /api/courses/{course_id}/students
+
+İlgili dersi seçen öğrencilerin listesini döner.
+
+```json
+[
+  { "id": "guid", "full_name": "Ali Veli", "email": "ali@okul.edu.tr" }
+]
+```
+
+### POST /api/classrooms
+
+Akademisyen veya idari sınıf açar ve seçili öğrencilere davet gönderir.
+
+```json
+{
+  "name": "BST 101 Grup A",
+  "course_id": "bst:BST101",
+  "invited_student_ids": ["guid-1", "guid-2"]
+}
+```
+
+Cevap:
+
+```json
+{
+  "id": "guid",
+  "name": "BST 101 Grup A",
+  "course_id": "bst:BST101",
+  "course_name": "İktisada Giriş",
+  "teacher_id": "guid",
+  "teacher_name": "Ayşe Öğretim",
+  "member_count": 0,
+  "is_owner": true,
+  "is_member": true,
+  "created_at": "2026-11-23T00:00:00+03:00"
+}
+```
+
+### GET /api/classrooms/my
+
+Kullanıcının üyesi olduğu (öğrenci) veya yönettiği (akademisyen/idari) sınıfları döner. Öğe şeması `POST /api/classrooms` cevabıyla aynıdır; liste dizisidir.
+
+### GET /api/classes/{class_id}/eligible-students
+
+Akademisyen veya idari. Sınıfın bağlı olduğu dersi (ve sınıf düzeyini) seçmiş öğrencileri getirir. Sonradan davet ekranı bu listeyi kullanır. `class_id`, mobil `classroom` kimliğiyle aynıdır.
+
+```json
+[
+  {
+    "student_id": "guid",
+    "full_name": "Ali Veli",
+    "student_number": "220103001",
+    "department_name": "Bilişim Sistemleri ve Teknolojileri",
+    "grade": 1,
+    "invitation_status": "none"
+  }
+]
+```
+
+`invitation_status` değerleri: `none` (davet edilmemiş, seçilebilir), `pending` (davet gönderildi), `accepted` (sınıfta).
+
+### POST /api/classes/{class_id}/invitations
+
+Akademisyen veya idari. Seçilen öğrencilere sınıf daveti gönderir; öğrenci bildirim ziline düşer.
+
+```json
+{ "student_ids": ["guid-1", "guid-2"] }
+```
+
+Başarılı cevap 204, gövde yok. Yalnızca `invitation_status: "none"` olan kimlikler kabul edilir; diğerleri 400 ve `message` ile reddedilir.
+
+### GET /api/classes/{class_id}/members
+
+Akademisyen veya idari. Sınıftaki öğrencileri (kabul etmiş üyeler) ve içerik yetkisini döner. Yetkilendirme ekranı bu listeyi kullanır.
+
+```json
+[
+  {
+    "student_id": "guid",
+    "full_name": "Ali Veli",
+    "student_number": "220103001",
+    "can_manage_content": false
+  }
+]
+```
+
+`can_manage_content: true` olan öğrenci sınıf içinde duyuru, not ve ödev ekleyebilir.
+
+### PATCH /api/classes/{class_id}/members/{student_id}/authority
+
+Akademisyen (sınıf sahibi) veya idari. İçerik yetkisini açar veya kapatır.
+
+```json
+{ "can_manage_content": true }
+```
+
+Cevap, güncel üye nesnesidir (`GET /api/classes/{class_id}/members` öğesiyle aynı).
+
+`GET /api/classrooms/my` ve sınıf detayında çağıran kullanıcı için `can_manage_content` alanı da döner: sahip akademisyen, idari veya yetkilendirilmiş üye `true` görür.
+
+### GET /api/invitations/pending
+
+Öğrencinin bekleyen sınıf davetlerini döner. Üst bar zil rozeti bu listenin uzunluğunu kullanır.
+
+```json
+[
+  {
+    "id": "guid",
+    "classroom_id": "guid",
+    "classroom_name": "BST 101 Grup A",
+    "course_name": "İktisada Giriş",
+    "teacher_name": "Ayşe Öğretim",
+    "created_at": "2026-11-23T00:00:00+03:00"
+  }
+]
+```
+
+### POST /api/invitations/{invitation_id}/respond
+
+```json
+{ "accept": true }
+```
+
+`accept: false` daveti reddeder. Başarılı cevap 204, gövde yok.
+
+### GET /api/classrooms/{classroom_id}/materials
+
+Sorgu: `type` = `note` | `assignment`. Sınıfın not veya ödev paylaşımlarını döner.
+
+```json
+[
+  {
+    "id": "guid",
+    "title": "1. Hafta Notu",
+    "content": "Konu özeti",
+    "type": "note",
+    "file_url": null,
+    "file_name": null,
+    "file_type": null,
+    "created_at": "2026-11-23T00:00:00+03:00"
+  }
+]
+```
+
+Dosya varsa `file_url` göreli yol veya indirme adresi, `file_name` orijinal ad, `file_type` MIME veya uzantı (`application/pdf`, `docx`, `txt` vb.) olur. Dosya indirme, gerektiğinde `access_token` sorgu parametresiyle yapılır.
+
+### POST /api/classrooms/{classroom_id}/materials
+
+`multipart/form-data`. Alanlar: `title`, `content`, `type` (`note` | `assignment`), isteğe bağlı `file` (`pdf`, `doc`, `docx`, `txt`). Yalnızca sınıfı yöneten akademisyen veya idari yükler. Öğrenci yalnızca okur ve indirir. Cevap tek materyal nesnesidir (GET öğesiyle aynı).
+
+### GET /api/admin/users
+
+Yalnız `admin`. Sorgu: `search` (isteğe bağlı).
+
+```json
+[
+  {
+    "id": "guid",
+    "full_name": "Ali Veli",
+    "email": "ali@okul.edu.tr",
+    "role": "student",
+    "can_create_club": false
+  }
+]
+```
+
+`role` değerleri `student` | `teacher` | `admin` olur.
+
+### POST /api/admin/users
+
+Yalnız `admin`. Gövde:
+
+```json
+{
+  "email": "yeni@okul.edu.tr",
+  "password": "enaz6karakter",
+  "role": "student"
+}
+```
+
+Cevap:
+
+```json
+{
+  "id": "guid",
+  "full_name": "E-postaya tanımlı isim",
+  "email": "yeni@okul.edu.tr",
+  "role": "student",
+  "can_create_club": false
+}
+```
+
+`full_name`, e-posta yerel kısmından veya kurum dizininden türetilir; mobil listedeki adı bu alandan gösterir.
+
+### PATCH /api/admin/users/{user_id}
+
+Yalnız `admin`. Gövde alanlarından en az biri gelir:
+
+```json
+{ "role": "teacher", "can_create_club": true }
+```
+
+Cevap, güncel kullanıcı nesnesidir (`GET /api/admin/users` öğesiyle aynı).
+
+### DELETE /api/admin/users/{user_id}
+
+Yalnız `admin`. Kullanıcıyı siler. Başarılı cevap 204, gövde yok. Yönetici kendi kaydını silemez.
+
+## Hedef: kulüp dinamik rol ve alt birim (Faz 1)
+
+Kulüp oluşturma `can_create_club` veya `system_role: admin` ister. `GET /api/auth/me` cevabında `can_create_club` (boolean) bulunur. Kulüp içi sohbet mobil tarafından kullanılmaz.
+
+### POST /api/clubs
+
+```json
+{
+  "name": "Yazılım Kulübü",
+  "description": "Üniversite yazılım topluluğu",
+  "category": "teknoloji",
+  "logo_url": null
+}
+```
+
+Cevap kulüp nesnesidir: `id`, `name`, `description`, `category`, `logo_url`, `created_by`, `created_at`, `membership`, `my_permissions`.
+
+### PATCH /api/clubs/{club_id}
+
+Gövde alanlarından en az biri: `name`, `description`, `category`, `logo_url`. `can_edit_club` gerekir.
+
+### GET /api/clubs/{club_id}/roles
+
+```json
+[
+  {
+    "id": "guid",
+    "name": "Mobil Alan Başkanı",
+    "color": "#8B2635",
+    "permissions": {
+      "can_post_announcement": true,
+      "can_manage_members": true,
+      "can_manage_departments": false,
+      "can_edit_club": false
+    }
+  }
+]
+```
+
+### POST /api/clubs/{club_id}/roles
+
+Gövde yukarıdaki rol şemasıyla aynıdır (`id` hariç).
+
+### DELETE /api/clubs/{club_id}/roles/{role_id}
+
+Özel rolü siler. 204.
+
+### GET /api/clubs/{club_id}/departments
+
+```json
+[
+  {
+    "id": "guid",
+    "name": "Mobil Geliştirme",
+    "lead_user_id": "guid",
+    "lead_full_name": "Ayşe Yılmaz"
+  }
+]
+```
+
+### POST /api/clubs/{club_id}/departments
+
+```json
+{ "name": "Mobil Geliştirme", "lead_user_id": "guid" }
+```
+
+### PATCH /api/clubs/{club_id}/members/{user_id}
+
+```json
+{ "role_ids": ["guid-1", "guid-2"], "department_id": "guid" }
+```
+
+`department_id` `null` olabilir. Bir üyeye birden fazla özel rol atanabilir.
+
+### POST /api/clubs/{club_id}/announcements
+
+```json
+{
+  "title": "Toplantı",
+  "content": "Salı 18:00",
+  "target_department_id": null
+}
+```
+
+`target_department_id` `null` ise tüm kulüp; dolu ise yalnızca o alt birim. Liste cevabında `target_department_id` ve `target_department_name` döner. `GET /api/clubs/{club_id}/announcements` aynı şemayı listeler.
+
+`GET /api/clubs/{club_id}` detay cevabı `members`, `roles`, `departments` ve `my_permissions` alanlarını içerir.
+
 ## Değişiklik günlüğü
 
+- 2026-11-24: BACKEND_BAGLA — mobil `USE_MOCK` ve geliştirici rol önizlemesi kaldırıldı; servisler yalnızca sözleşme uçlarına istek atar. Kulüp Faz 1 uçları sözleşmeye eklendi.
+- 2026-11-23: Sınıf üyesi içerik yetkisi için `GET /api/classes/{class_id}/members` ve `PATCH /api/classes/{class_id}/members/{student_id}/authority` eklendi. Yetkili öğrenci duyuru, not ve ödev ekleyebilir.
+- 2026-11-23: Sınıfa sonradan öğrenci daveti için `GET /api/classes/{class_id}/eligible-students` ve `POST /api/classes/{class_id}/invitations` eklendi.
+- 2026-11-23: Ders, sınıf grubu, davet, materyal ve idari kullanıcı yönetimi için hedef uçlar eklendi (`/api/courses`, `/api/users/me/courses`, `/api/classrooms`, `/api/invitations`, `/api/admin/users`). Wire `snake_case`; roller `student` | `teacher` | `admin`.
 - 2026-11-21: Mobil katalog, öğrenim okuma ve yazmayı `GET /api/departments`, `GET /api/me/study` ve `PUT /api/me/study` üzerinden ister. `PUT` gövdesi `department_id` ve `course_ids` olarak kalır; tek `year` alanı yoktur. Katalog uç vermezse tohum liste aynı JSON şeklinde kullanılır. `PUT /api/users/{id}/role` cevabı 204 ve gövdesizdir; mobil listeyi yerelde günceller.
 - 2026-11-21: Öğrenci, akademisyen ve idari seçimi giriş formundan önce yapılır. Akademisyen ve idari bölüm-ders adımını geçip giriş formuna gider. Giriş isteğinin gövdesi değişmez.
 - 2026-11-21: Seçim ekranında ve profilde her sınıf ayrı açılır listedir. Başlık `{year}. Sınıf Dersleri` olur. API gövdesi değişmez.

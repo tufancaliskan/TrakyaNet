@@ -19,11 +19,13 @@ export function FormModal({
   title,
   onClose,
   children,
+  footer,
 }: {
   visible: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
+  footer?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -45,6 +47,7 @@ export function FormModal({
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.body}>
             {children}
           </ScrollView>
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -90,5 +93,9 @@ const styles = StyleSheet.create({
   body: {
     gap: 12,
     paddingBottom: 8,
+  },
+  footer: {
+    paddingTop: 12,
+    gap: 8,
   },
 });

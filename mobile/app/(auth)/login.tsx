@@ -9,6 +9,7 @@ import { AnimatedPressable } from '@/components/AnimatedPressable';
 import { Button, InlineError, TextField } from '@/components/ui';
 import { colors, displayFont, softShadow } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
+import { ENABLE_DEV_ROLE_LOGIN } from '@/lib/devAuth';
 import { errorMessage } from '@/lib/errors';
 import { loadEntry } from '@/lib/onboarding';
 import type { SystemRole } from '@/types/database';
@@ -20,7 +21,7 @@ const gates: { role: SystemRole; title: string }[] = [
 ];
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, enterDevPreview } = useAuth();
   const insets = useSafeAreaInsets();
   const [gate, setGate] = useState<SystemRole | null>(null);
   const [email, setEmail] = useState('');
@@ -29,6 +30,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const selected = gates.find((item) => item.role === gate);
+  const staffPreview = ENABLE_DEV_ROLE_LOGIN && gate !== null && gate !== 'student';
 
   useEffect(() => {
     loadEntry().then((saved) => {
@@ -41,18 +43,32 @@ export default function LoginScreen() {
     });
   }, []);
 
+  async function onQuickDev() {
+    if (!gate || gate === 'student') return;
+    setLoading(true);
+    setError(null);
+    try {
+      await enterDevPreview(gate);
+    } catch (devError) {
+      setError(errorMessage(devError, 'Önizleme oturumu açılamadı.'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function onSubmit() {
+    if (!gate) return;
     if (!email.trim() || !password) {
       setError('E-posta ve şifre gerekli.');
       return;
     }
-    if (!gate) return;
     setLoading(true);
     setError(null);
     try {
       await signIn(email, password, gate);
     } catch (signInError) {
-      setError(errorMessage(signInError, 'Giriş yapılamadı.'));
+      const message = errorMessage(signInError, 'Giriş yapılamadı.');
+      setError(message === 'Oturum geçersiz veya yetki yok.' ? 'E-posta veya şifre hatalı.' : message);
     } finally {
       setLoading(false);
     }
@@ -83,6 +99,17 @@ export default function LoginScreen() {
             {selected ? (
               <>
                 <Text style={styles.heading}>{selected.title}</Text>
+                {staffPreview ? (
+                  <>
+                    <Text style={styles.previewHelp}>
+                      Geliştirici önizlemesi yerel örnek rolle açılır. Veritabanı hesabıyla denemek için aşağıdan giriş
+                      yap.
+                    </Text>
+                    <Button label="Önizlemeyi aç" variant="secondary" onPress={() => void onQuickDev()} loading={loading} />
+                    <View style={styles.divider} />
+                    <Text style={styles.section}>Veritabanı hesabı</Text>
+                  </>
+                ) : null}
                 <TextField
                   label="E-posta"
                   value={email}
@@ -100,7 +127,7 @@ export default function LoginScreen() {
                   autoCapitalize="none"
                 />
                 <InlineError message={error} />
-                <Button label="Giriş yap" onPress={onSubmit} loading={loading} />
+                <Button label="Giriş yap" onPress={() => void onSubmit()} loading={loading} />
                 <Button
                   label="Seçim paneline dön"
                   variant="secondary"
@@ -165,6 +192,9 @@ const styles = StyleSheet.create({
     ...softShadow,
   },
   panel: { gap: 14 },
+  previewHelp: { color: colors.muted, fontSize: 14, lineHeight: 20 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginVertical: 4 },
+  section: { color: colors.ink, fontSize: 15, fontWeight: '700' },
   heading: {
     fontFamily: displayFont,
     fontSize: 28,
